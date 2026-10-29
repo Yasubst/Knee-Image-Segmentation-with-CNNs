@@ -1,0 +1,14 @@
+# Keep original medical images out of GitHub
+data/xrays/
+data/masks/
+
+# Python temporary files
+__pycache__/
+*.pyc
+
+# Python virtual environments
+.venv/
+venv/
+
+# PyCharm settings
+.idea/
