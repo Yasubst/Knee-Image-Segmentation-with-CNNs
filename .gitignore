@@ -2,6 +2,10 @@
 data/xrays/
 data/masks/
 
+# Keep trained models out of GitHub
+sessions/
+*.pth
+
 # Python temporary files
 __pycache__/
 *.pyc
