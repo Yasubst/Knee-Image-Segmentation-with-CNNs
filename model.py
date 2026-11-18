@@ -1,5 +1,7 @@
+
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 # 1. Double Convolution Block
@@ -9,15 +11,30 @@ class DoubleConv(nn.Module):
         super().__init__()
 
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size=3,
+                padding=1,
+                bias=False
+            ),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
 
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.Conv2d(
+                out_channels,
+                out_channels,
+                kernel_size=3,
+                padding=1,
+                bias=False
+            ),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True)
         )
 
     def forward(self, x):
         return self.conv(x)
+
 
 # 2. Encoder Block
 class Encoder(nn.Module):
@@ -34,6 +51,7 @@ class Encoder(nn.Module):
 
         return features, pooled
 
+
 # 3. Bottleneck Block
 class Bottleneck(nn.Module):
 
@@ -45,17 +63,12 @@ class Bottleneck(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
+
 # 4. Decoder Block
 class Decoder(nn.Module):
 
     def __init__(self, in_channels, skip_channels, out_channels):
         super().__init__()
-
-        self.up = nn.Upsample(
-            scale_factor=2,
-            mode="bilinear",
-            align_corners=False
-        )
 
         self.conv = DoubleConv(
             in_channels + skip_channels,
@@ -63,12 +76,20 @@ class Decoder(nn.Module):
         )
 
     def forward(self, x, skip):
-        x = self.up(x)
+
+        # Upsample to match skip connection dimensions
+        x = F.interpolate(
+            x,
+            size=skip.shape[2:],
+            mode="bilinear",
+            align_corners=False
+        )
 
         # Combine decoder output with encoder features
         x = torch.cat([skip, x], dim=1)
 
         return self.conv(x)
+
 
 # 5. Complete U-Net Model
 class UNet(nn.Module):
@@ -88,7 +109,11 @@ class UNet(nn.Module):
         self.decoder1 = Decoder(64, 32, 32)
 
         # Output
-        self.output = nn.Conv2d(32, out_channels, kernel_size=1)
+        self.output = nn.Conv2d(
+            32,
+            out_channels,
+            kernel_size=1
+        )
 
     def forward(self, x):
 
@@ -111,19 +136,3 @@ class UNet(nn.Module):
         return self.output(x)
 
 
-
-# Temporary test
-if __name__ == "__main__":
-
-    model = UNet()
-
-    x = torch.randn(1, 1, 256, 256)
-
-    output = model(x)
-
-    print("Input shape:", x.shape)
-    print("Output shape:", output.shape)
-
-    print("Total parameters:", sum(
-        p.numel() for p in model.parameters()
-    ))

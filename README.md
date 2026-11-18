@@ -1,252 +1,191 @@
 # Knee Image Segmentation Using U-Net
 
-## Project Overview
+A deep learning project for **automatic tibia segmentation in knee X-ray images** using Python, PyTorch, and a U-Net Convolutional Neural Network (CNN).
 
-This project implements a **U-Net Convolutional Neural Network (CNN)** for semantic segmentation of knee X-ray images using Python and PyTorch.
+The model generates binary segmentation masks to identify the tibia (lower knee bone). The project covers data preprocessing, training, evaluation, post-processing, and visualization.
 
-The main objective is to identify and segment the **tibia (lower knee bone)** by generating binary segmentation masks from grayscale X-ray images.
+## Results
 
-The project demonstrates a complete deep learning workflow, including data preparation, model development, training, evaluation, and visualization of segmentation results.
+| Metric | Result |
+|---|---:|
+| Dataset | 150 knee X-rays |
+| Training / Validation / Test | 80 / 20 / 50 |
+| Training epochs | 100 |
+| Best raw validation Dice | **90.02%** |
+| Post-processed validation Dice | **96.07%** |
 
-## Disclaimer
+Post-processing improved the mean validation Dice score by **6.05 percentage points**.
 
-**This project is developed strictly for educational and research purposes.**
+### Segmentation Examples
 
-The model is designed to demonstrate medical image segmentation techniques and is **not intended for medical diagnosis, treatment decisions, or clinical use**.
+The following examples compare the original X-ray, ground-truth mask, raw prediction, and post-processed prediction.
 
-The model has not undergone clinical validation, and its predicted segmentation masks may contain inaccuracies. Results should not be used for patient care or interpreted as professional medical assessments.
+**Example 1 — Dice: 0.8083 → 0.9824**
 
-## Dataset
+![Validation segmentation example 1](sessions/validation_comparisons_cleaned/validation_006.png)
 
-The dataset consists of **150 grayscale knee X-ray images**, processed at a resolution of 224 × 224 pixels.
+**Example 2 — Dice: 0.9675 → 0.9823**
 
-| Dataset | Images | Ground-truth masks |
+![Validation segmentation example 2](sessions/validation_comparisons_cleaned/validation_009.png)
+
+## Dataset and Preprocessing
+
+The dataset contains **150 grayscale knee X-rays**, resized to **256 × 256 pixels**.
+
+| Split | Images | Ground-truth masks |
 |---|---:|---|
 | Training | 80 | Available |
 | Validation | 20 | Available |
 | Test | 50 | Not available |
-| **Total** | **150** | **100 available** |
 
-The training and validation images have corresponding binary segmentation masks indicating the target tibia region.
+Images are normalized to [0, 1], and masks are converted to binary values. Random horizontal flips and small rotations are applied during training.
 
-The dataset is excluded from this GitHub repository.
+The original dataset is not included in this repository.
 
-## Model Architecture
+## Model and Training
 
-The project uses a U-Net architecture with an encoder-decoder structure and skip connections.
+The model uses a compact **U-Net architecture** with two encoder blocks, a bottleneck, two decoder blocks, and skip connections. Each convolution block includes batch normalization and ReLU activation.
 
-The architecture includes:
+The network contains approximately **471,617 trainable parameters**.
 
-- **Encoder:** Two convolutional blocks for extracting image features.
-- **Bottleneck:** A deeper convolutional block for learning high-level features.
-- **Decoder:** Two upsampling blocks for reconstructing segmentation masks.
-- **Skip connections:** Combine encoder and decoder features to preserve spatial information.
-- **Output layer:** Produces pixel-level logits for binary segmentation.
-
-The model has approximately **471,000 trainable parameters**.
-
-## Training Configuration
-
-The model was trained using PyTorch with the following configuration:
-
-| Parameter | Value |
+| Configuration | Value |
 |---|---|
-| Model | U-Net |
 | Framework | PyTorch |
-| Image resolution | 224 × 224 |
 | Optimizer | Adam |
 | Learning rate | 0.0001 |
-| Batch size | 16 |
+| Batch size | 4 |
+| Epochs | 100 |
+| Loss function | BCEWithLogits + Dice Loss |
 | Weight decay | 0.00001 |
-| Loss function | Binary Cross-Entropy + Dice Loss |
-| Training epochs | 30 |
 | Gradient clipping | 1.0 |
-| Evaluation metric | Dice similarity coefficient |
+| Scheduler | ReduceLROnPlateau |
+| Evaluation metric | Dice coefficient |
 
-The training process includes validation after each epoch, and the best-performing model is saved as a checkpoint.
+The model is validated after each epoch, and the checkpoint with the highest validation Dice score is saved as `sessions/demo_model.pth`.
 
-A separate five-epoch configuration is available for demonstrating the training process without overwriting the previously trained model.
+### Training Performance
 
-## Model Evaluation
+![Training curves](sessions/training_curves.png)
 
-The saved model was evaluated using the **20 labeled validation images**.
+The best raw validation Dice score of **0.9002** was achieved at epoch 87.
 
-The Dice similarity coefficient measures the overlap between predicted segmentation masks and ground-truth masks.
+## Evaluation and Post-Processing
 
-A Dice score of 1.0 indicates perfect overlap, while 0.0 indicates no overlap.
+The saved model is evaluated on **20 labeled validation images** using the Dice similarity coefficient.
 
-### Validation Results
+Predicted probabilities are converted into binary masks using a threshold of **0.5**.
 
-| Prediction threshold | Validation Dice |
+To improve segmentation quality, post-processing applies:
+
+1. **Largest connected component:** Removes small, disconnected false-positive regions.
+2. **Hole filling:** Fills enclosed holes inside the predicted tibia.
+3. **Morphological closing:** Closes small gaps using a 3 × 3 elliptical kernel.
+
+### Dice Score Comparison
+
+![Raw vs post-processed validation Dice](sessions/postprocessing_dice_comparison.png)
+
+| Prediction | Mean Validation Dice |
 |---|---:|
-| 0.30 | 0.5744 |
-| 0.35 | 0.5818 |
-| **0.40** | **0.5837** |
-| 0.45 | 0.5743 |
-| 0.50 | 0.5470 |
+| Raw | 0.9002 |
+| **Post-processed** | **0.9607** |
 
-**Best validation Dice score: 0.5837 at threshold 0.40.**
+All 20 validation images showed improved Dice scores after post-processing.
 
-The model achieved approximately 58.37% Dice overlap on the validation dataset.
+The trained model also generated masks for **50 unlabeled test images**. Since ground-truth masks are unavailable, quantitative test Dice scores cannot be calculated.
 
-The 50 test images do not have ground-truth segmentation masks. Therefore, quantitative test Dice scores cannot be calculated. Test images are used only for visual inspection of model predictions.
-
-## Segmentation Results
-
-### 1. Validation Segmentation
-
-The following figure compares an original knee X-ray image, its ground-truth mask, and the model's predicted segmentation mask.
-
-![Validation segmentation result](demo_images/validation_prediction.png)
-
-### 2. Test Image Predictions
-
-The following figure demonstrates predicted segmentation masks for three previously unlabeled test X-ray images.
-
-![Test image segmentation predictions](demo_images/test_predictions.png)
-
-## Observations and Limitations
-
-The model demonstrates the ability to learn segmentation patterns from knee X-ray images.
-
-However, visual evaluation reveals several limitations:
-
-- The model identifies portions of the tibia but does not consistently segment the complete target region.
-- Some predictions incorrectly include areas around the femur or background.
-- Certain predicted masks contain missing regions or irregular boundaries.
-- The relatively small labeled dataset limits the model's ability to generalize.
-
-The validation Dice score indicates that further improvements would be necessary before considering more demanding applications.
-
-### Possible Future Improvements
-
-Potential improvements include:
-
-- Increasing the number of labeled training images.
-- Applying data augmentation.
-- Experimenting with alternative segmentation architectures.
-- Tuning model hyperparameters and loss functions.
-- Evaluating performance on additional labeled test data.
+**Note:** Post-processing was developed using validation examples, so the reported cleaned Dice is a validation result, not an independent test result.
 
 ## Project Structure
 
 ```text
 Knee-Image-Segmentation-with-CNNs/
+├── args.py                 # Training parameters
+├── data_preparation.py     # Dataset preparation and splitting
+├── dataset.py              # Image loading and augmentation
+├── model.py                # U-Net architecture
+├── main.py                 # Training entry point
+├── trainer.py              # Training and validation
+├── utils.py                # Loss functions and Dice metrics
+├── evaluate.py             # Evaluation and post-processing
+├── README.md               # Project documentation
+├── .gitignore              # Git exclusion rules
 │
-├── args.py
-├── data_preparation.py
-├── dataset.py
-├── model.py
-├── main.py
-├── trainer.py
-├── utils.py
-├── evaluate.py
+├── data/
+│   ├── CSVs/               # Dataset split files
+│   ├── masks/              # Ground-truth tibia masks
+│   └── xrays/              # Knee X-ray images
 │
-├── demo_images/
-│   ├── validation_prediction.png
-│   └── test_predictions.png
-│
-├── README.md
-├── .gitignore
-│
-├── data/                  # Local dataset (not included)
-└── sessions/              # Local model checkpoints (not included)
+└── sessions/
+    ├── demo_model.pth
+    ├── training_history.csv
+    ├── training_curves.png
+    ├── validation_dice_scores.csv
+    ├── validation_dice_chart.png
+    ├── postprocessing_dice_scores.csv
+    ├── postprocessing_dice_comparison.png
+    ├── validation_comparisons/
+    ├── validation_comparisons_cleaned/
+    ├── test_predictions/
+    ├── test_predictions_raw/
+    └── test_predictions_cleaned/
 ```
-
-### File Descriptions
-
-| File | Purpose |
-|---|---|
-| `args.py` | Defines command-line training parameters |
-| `data_preparation.py` | Creates training, validation, and test CSV files |
-| `dataset.py` | Loads and preprocesses knee X-ray images and segmentation masks |
-| `model.py` | Implements the U-Net architecture |
-| `main.py` | Initializes the dataset, model, and training process |
-| `trainer.py` | Handles training, validation, and checkpoint saving |
-| `utils.py` | Contains Dice loss, Dice score, and other utility functions |
-| `evaluate.py` | Evaluates the saved model and visualizes segmentation results |
 
 ## Installation and Usage
 
-### 1. Clone the Repository
+**1. Clone the repository**
 
 ```bash
 git clone https://github.com/Yasubst/Knee-Image-Segmentation-with-CNNs.git
 cd Knee-Image-Segmentation-with-CNNs
 ```
 
-### 2. Create a Virtual Environment
+**2. Install dependencies**
 
 ```bash
-python -m venv .venv
+pip install torch numpy pandas matplotlib opencv-python scikit-learn
 ```
 
-Activate the environment on Windows:
+**3. Prepare the dataset**
 
-```powershell
-.venv\Scripts\activate
-```
-
-### 3. Install Dependencies
-
-```bash
-pip install torch numpy pandas matplotlib pillow
-```
-
-### 4. Prepare the Dataset
-
-Place the knee X-ray images and segmentation masks in the local dataset directories expected by `data_preparation.py`.
-
-Generate the dataset CSV files:
+Place the X-rays in `data/xrays/` and their corresponding masks in `data/masks/`.
 
 ```bash
 python data_preparation.py
 ```
 
-### 5. Train the Model
+**4. Train the model**
 
 ```bash
 python main.py
 ```
 
-The default training configuration runs five epochs for demonstration purposes.
-
-The reported validation results were obtained from a separately trained 30-epoch model.
-
-### 6. Evaluate the Model
+For a short five-epoch demonstration without overwriting the main checkpoint:
 
 ```bash
-python evaluate.py
+python main.py -epochs 5 -out_dir sessions/demo_5epochs
 ```
 
-The evaluation script loads the previously trained checkpoint from:
+**5. Evaluate the saved model**
 
-```text
-sessions/improved_model.pth
+```bash
+python evaluate.py -out_dir sessions
 ```
 
-It calculates validation Dice scores and generates visual comparisons of predicted segmentation masks.
+Evaluation generates validation Dice scores, comparison figures, and raw and post-processed test predictions.
 
-**Note:** The trained model checkpoint and dataset are not included in this repository. Evaluation requires a compatible locally trained checkpoint.
+**Note:** The dataset and trained checkpoint are not included in this repository. Evaluation requires a compatible locally trained checkpoint.
 
-## Technologies Used
+## Technologies
 
-- Python
-- PyTorch
-- NumPy
-- Pandas
-- Matplotlib
-- OpenCV (cv2)
-- Git and GitHub
+**Python · PyTorch · NumPy · Pandas · OpenCV · Matplotlib · Scikit-learn · Git**
 
-## Conclusion
+## Limitations and Future Work
 
-This project demonstrates the implementation of a U-Net-based semantic segmentation pipeline for knee X-ray images.
+The project uses a relatively small labeled dataset. Post-processing assumes the tibia is the largest relevant connected region, and independent labeled test data is not available.
 
-The model achieved a best validation Dice score of **0.5837**, demonstrating partial segmentation capability while also highlighting the challenges of working with limited medical imaging datasets.
-
-The project provided practical experience in image preprocessing, CNN architectures, training, evaluation, and visualization using PyTorch.
+Future improvements include training with more annotated X-rays, exploring alternative segmentation architectures, and evaluating performance on independent datasets.
 
 ---
 
-**Educational project only — not intended for clinical or diagnostic use.**
+**Disclaimer:** This project is intended for educational and research purposes only. It has not been clinically validated and is not intended for medical diagnosis or patient care.

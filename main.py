@@ -14,24 +14,41 @@ from trainer import train_model
 args = get_args()
 
 # 2: Load CSV files
-train_set = pd.read_csv(os.path.join(args.csv_dir, "train.csv"))
-val_set = pd.read_csv(os.path.join(args.csv_dir, "val.csv"))
+train_set = pd.read_csv(
+    os.path.join(args.csv_dir, "train.csv")
+)
+
+val_set = pd.read_csv(
+    os.path.join(args.csv_dir, "val.csv")
+)
 
 # 3: Create datasets
-train_dataset = KneeDataset(train_set)
-val_dataset = KneeDataset(val_set)
+
+# Enable augmentation for training only
+train_dataset = KneeDataset(
+    train_set,
+    augment=True
+)
+
+# No augmentation for validation
+val_dataset = KneeDataset(
+    val_set,
+    augment=False
+)
 
 # 4: Create DataLoaders
 train_loader = DataLoader(
     train_dataset,
     batch_size=int(args.bs),
-    shuffle=True
+    shuffle=True,
+    num_workers=0
 )
 
 val_loader = DataLoader(
     val_dataset,
     batch_size=int(args.bs),
-    shuffle=False
+    shuffle=False,
+    num_workers=0
 )
 
 # 5: Initialize U-Net model
@@ -44,5 +61,18 @@ device = torch.device(
 
 print("Using device:", device)
 
+print("Training images:", len(train_dataset))
+print("Validation images:", len(val_dataset))
+
+print(
+    "Total model parameters:",
+    sum(p.numel() for p in model.parameters())
+)
+
 # 7: Start training
-train_model(model, train_loader, val_loader, device)
+train_model(
+    model,
+    train_loader,
+    val_loader,
+    device
+)

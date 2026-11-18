@@ -1,9 +1,20 @@
+
 # Keep original medical images out of GitHub
 data/xrays/
 data/masks/
 
-# Keep trained models out of GitHub
-sessions/
+# Keep trained models and generated outputs private
+sessions/*
+!sessions/training_curves.png
+!sessions/postprocessing_dice_comparison.png
+!sessions/validation_comparisons_cleaned/
+
+# Allow selected validation comparison images
+sessions/validation_comparisons_cleaned/*
+!sessions/validation_comparisons_cleaned/validation_006.png
+!sessions/validation_comparisons_cleaned/validation_009.png
+
+# Exclude model checkpoints everywhere
 *.pth
 
 # Python temporary files
